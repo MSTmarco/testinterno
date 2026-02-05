@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PoC VÖRNTEC × TGN</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --primary: #00B050;
+            --secondary: #0F4C81;
+            --dark: #1a1a1a;
+            --accent: #FF6B35;
+            --light: #f5f5f5;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--dark);
+            color: var(--light);
+            overflow: hidden;
+        }
+        
+        /* CRITICAL: Slides Container */
+        .slides-container {
+            height: 100vh;
+            width: 100vw;
+            overflow-y: scroll;
+            scroll-snap-type: y mandatory;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* CRITICAL: Each slide EXACTLY 100vh, NO MORE, NO LESS */
+        .slide {
+            height: 100vh;
+            min-height: 100vh;
+            max-height: 100vh;
+            width: 100vw;
+            scroll-snap-align: start;
+            scroll-snap-stop: always;
+            position: relative;
+            overflow: hidden; /* CRITICAL: Nothing escapes the slide */
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            padding: 4rem 3rem 3rem 3rem; /* TOP padding is 4rem for space */
+        }
+        
+        /* Code line at top */
+        .code-line {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--primary);
+            font-size: 0.7rem;
+            opacity: 0.5;
+            position: absolute;
+            top: 1rem;
+            left: 2rem;
+        }
+        
+        /* Main content wrapper with scroll if needed */
+        .slide-inner {
+            max-width: 1100px;
+            width: 100%;
+            margin: 0 auto;
+            max-height: calc(100vh - 7rem); /* Account for padding */
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        
+        /* Navigation */
+        .nav-controls {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            display: flex;
+            gap: 1rem;
+            z-index: 1000;
+        }
+        
+        .nav-btn {
+            width: 45px;
+            height: 45px;
+            background: rgba(0, 176, 80, 0.2);
+            border: 2px solid var(--primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1.3rem;
+            color: var(--primary);
+        }
+        
+        .nav-btn:hover {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .slide-counter {
+            position: fixed;
+            bottom: 2rem;
+            left: 2rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            opacity: 0.7;
+            z-index: 1000;
+        }
+        
+        /* Typography */
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-align: center;
+        }
+        
+        h2 {
+            font-size: 2rem;
+            color: var(--primary);
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+        
+        /* Grids */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.2rem;
+            margin: 1.2rem 0;
+        }
+        
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.2rem;
+            margin: 1.2rem 0;
+        }
+        
+        /* Cards */
+        .card {
+            background: rgba(0, 176, 80, 0.05);
+            border: 2px solid rgba(0, 176, 80, 0.3);
+            border-radius: 10px;
+            padding: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 176, 80, 0.2);
+        }
+        
+        .card-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.6rem;
+        }
+        
+        .card-text {
+            font-size: 0.85rem;
+            line-height: 1.5;
+            opacity: 0.9;
+        }
+        
+        /* Metric display */
+        .metric {
+            text-align: center;
+            padding: 1.2rem;
+        }
+        
+        .metric-value {
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--primary);
+            font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 0.4rem;
+            line-height: 1;
+        }
+        
+        .metric-label {
+            font-size: 0.9rem;
+            opacity: 0.85;
+        }
+        
+        /* Cover */
+        .cover-logos {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2rem;
+            margin: 1rem 0;
+        }
+        
+        .cover-logo {
+            max-width: 150px;
+            height: auto;
+        }
+        
+        .cover-subtitle {
+            font-size: 1.1rem;
+            opacity: 0.8;
+            text-align: center;
+            margin: 0.8rem 0;
+        }
+        
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+        
+        @media (max-width: 768px) {
+            .slide {
+                padding: 3rem 1.5rem 2rem 1.5rem;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            h2 {
+                font-size: 1.6rem;
+            }
+            
+            .grid-2, .grid-3 {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav-controls, .slide-counter {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Modal Overlay -->
+    <div id="modalOverlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.85); z-index: 10000; align-items: center; justify-content: center;">
+        <div style="background: var(--dark); border: 2px solid var(--primary); border-radius: 12px; padding: 2rem; max-width: 500px; width: 90%; position: relative;">
+            <button onclick="closeModal()" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; color: var(--light); font-size: 1.5rem; cursor: pointer; opacity: 0.7; transition: opacity 0.3s ease;">&times;</button>
+            <div id="modalTitle" style="font-weight: 700; color: var(--primary); margin-bottom: 1rem; font-size: 1.2rem;"></div>
+            <div id="modalText" style="font-size: 0.95rem; line-height: 1.6; opacity: 0.9;"></div>
+        </div>
+    </div>
+    
+    <div class="nav-controls">
+        <div class="nav-btn" onclick="previousSlide()">↑</div>
+        <div class="nav-btn" onclick="nextSlide()">↓</div>
+    </div>
+    
+    <div class="slide-counter">
+        <span id="currentSlide">1</span> / <span id="totalSlides">10</span>
+    </div>
+    
+    <div class="slides-container" id="slidesContainer">
+        
+        <!-- SLIDE 1: COVER -->
+        <div class="slide">
+            <div class="code-line">// POC_PROPOSAL.tsx</div>
+            <div class="slide-inner" style="text-align: center;">
+                <div class="cover-logos">
+                    <img src="./assets/TGN.png" alt="TGN" class="cover-logo">
+                    <span style="font-size: 1.6rem; color: var(--primary);">×</span>
+                    <img src="./assets/vorntec-logo.png" alt="VÖRNTEC" class="cover-logo">
+                </div>
+                
+                <h1 style="font-size: 2.2rem;">El ChatGPT de las emisiones de gas</h1>
+                
+                <p class="cover-subtitle"></p>
+                
+                <div style="margin: 1rem auto; max-width: 650px;">
+                    <img src="./assets/TGN_ops.png" alt="TGN Operations" style="width: 100%; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);">
+                </div>
+                
+                <div style="font-family: 'JetBrains Mono', monospace; opacity: 0.5; margin-top: 0.8rem; font-size: 0.85rem;">
+                    Febrero 2026
+                </div>
+            </div>
+        </div>
+        
+        <!-- SLIDE 2: EXECUTIVE SUMMARY -->
+        <div class="slide" style="background: linear-gradient(135deg, #1a1a1a 0%, #0d1117 100%);">
+            <div class="code-line">// EXECUTIVE_SUMMARY.json</div>
+            <div class="slide-inner">
+                <h1>La Oportunidad para TGN</h1>
+                
+                <div class="card" onclick="showModal('Metodología de Cálculo', 'Basado en reducción del 7% de emisiones fugitivas de CH₄ mediante detección predictiva con IA y análisis avanzado de datos operacionales. Incluye: prevención de fugas, mejoras en seguridad, reducción de multas ambientales, y automatización de órdenes de trabajo.')" style="border: 3px solid var(--primary); background: linear-gradient(135deg, rgba(0, 176, 80, 0.15) 0%, rgba(15, 76, 129, 0.1) 100%); text-align: center; padding: 1.3rem; margin-bottom: 1rem; cursor: pointer; transition: all 0.3s ease;" onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 12px 40px rgba(0, 176, 80, 0.3)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
+                    <div style="font-size: 0.85rem; opacity: 0.8; margin-bottom: 0.3rem; text-transform: uppercase;">Ahorro Económico Anual</div>
+                    <div style="font-size: 3.2rem; font-weight: 700; color: var(--primary); font-family: 'JetBrains Mono', monospace; line-height: 1;">$9M-$16M</div>
+                    <div style="font-size: 0.9rem; opacity: 0.85; margin-top: 0.3rem;">USD mediante reducción de emisiones fugitivas</div>
+                </div>
+                
+                <!-- Breakdown of savings -->
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.8rem; margin-bottom: 1rem;">
+                    <div style="background: rgba(0, 176, 80, 0.08); border: 1px solid rgba(0, 176, 80, 0.3); border-radius: 8px; padding: 0.7rem; text-align: center;">
+                        <div style="font-size: 0.75rem; opacity: 0.7; margin-bottom: 0.2rem;">Fugas Fugitivas</div>
+                        <div style="font-size: 0.85rem; font-weight: 600; color: var(--primary);">Algoritmos IA</div>
+                    </div>
+                    <div style="background: rgba(0, 176, 80, 0.08); border: 1px solid rgba(0, 176, 80, 0.3); border-radius: 8px; padding: 0.7rem; text-align: center;">
+                        <div style="font-size: 0.75rem; opacity: 0.7; margin-bottom: 0.2rem;">Seguridad</div>
+                        <div style="font-size: 0.85rem; font-weight: 600; color: var(--primary);">Algoritmos IA</div>
+                    </div>
+                    <div style="background: rgba(0, 176, 80, 0.08); border: 1px solid rgba(0, 176, 80, 0.3); border-radius: 8px; padding: 0.7rem; text-align: center;">
+                        <div style="font-size: 0.75rem; opacity: 0.7; margin-bottom: 0.2rem;">Multas</div>
+                        <div style="font-size: 0.85rem; font-weight: 600; color: var(--primary);">Info completa</div>
+                    </div>
+                    <div style="background: rgba(0, 176, 80, 0.08); border: 1px solid rgba(0, 176, 80, 0.3); border-radius: 8px; padding: 0.7rem; text-align: center;">
+                        <div style="font-size: 0.75rem; opacity: 0.7; margin-bottom: 0.2rem;">Eficiencia</div>
+                        <div style="font-size: 0.85rem; font-weight: 600; color: var(--primary);">OT automáticas</div>
+                    </div>
+                </div>
+                
+                <div class="grid-2" style="margin-bottom: 1rem;">
+                    <div class="card">
+                        <div style="display: flex; gap: 1rem; align-items: center;">
+                            <img src="./assets/TGN_mapa.jpg" alt="Sistema TGN" style="width: 130px; height: auto; border-radius: 8px; object-fit: contain;">
+                            <div style="flex: 1;">
+                                <div class="card-title">Sistema de Transporte TGN</div>
+                                <div class="card-text">
+                                    <strong style="color: var(--primary);">6,822 km</strong> de gasoductos propios<br>
+                                    <strong style="color: var(--primary);">20 plantas</strong> compresoras (375,620 HP)
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card" style="text-align: center;">
+                        <div style="font-size: 0.75rem; opacity: 0.8; margin-bottom: 0.3rem;">Meta Comprometida</div>
+                        <div style="font-size: 2.2rem; font-weight: 700; color: var(--secondary); font-family: 'JetBrains Mono', monospace; line-height: 1;">2050</div>
+                        <div style="font-size: 0.85rem; opacity: 0.9;">Emisiones netas cero</div>
+                    </div>
+                </div>
+                
+                <div class="grid-3">
+                    <div onclick="showModal('Emisiones de CH₄', 'Del total de emisiones de TGN, 27% corresponde a metano proveniente de compresores, emisiones fugitivas y venteos de seguridad. Esta es la principal fuente de emisiones y nuestro target de reducción.')" class="metric" style="background: rgba(255, 107, 53, 0.1); border: 2px solid var(--accent); border-radius: 10px; padding: 1rem; cursor: pointer; transition: all 0.3s ease;" onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 30px rgba(255, 107, 53, 0.3)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
+                        <div style="font-size: 2rem; font-weight: 700; color: var(--accent); font-family: 'JetBrains Mono', monospace; margin-bottom: 0.3rem;">27%</div>
+                        <div style="font-size: 0.8rem; line-height: 1.3;"><strong>Emisiones CH₄</strong><br><span style="opacity: 0.7; font-size: 0.7rem;">Compresores</span></div>
+                    </div>
+                    
+                    <div onclick="showModal('Sello Hidráulico', 'Segunda fuente principal de emisiones del sistema de transporte TGN, representando el 16% del total de emisiones.')" class="metric" style="background: rgba(255, 107, 53, 0.1); border: 2px solid var(--accent); border-radius: 10px; padding: 1rem; cursor: pointer; transition: all 0.3s ease;" onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 30px rgba(255, 107, 53, 0.3)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
+                        <div style="font-size: 2rem; font-weight: 700; color: var(--accent); font-family: 'JetBrains Mono', monospace; margin-bottom: 0.3rem;">16%</div>
+                        <div style="font-size: 0.8rem; line-height: 1.3;"><strong>Sello Hidráulico</strong><br><span style="opacity: 0.7; font-size: 0.7rem;">Segunda fuente</span></div>
+                    </div>
+                    
+                    <div onclick="showModal('Fugitivas CH₄', 'Target principal de nuestro sistema de detección predictiva. Estas emisiones fugitivas representan el 7% del total y son una oportunidad significativa de reducción mediante tecnología de IA, ya que son detectables y prevenibles antes de que ocurran.')" class="metric" style="background: rgba(255, 107, 53, 0.1); border: 2px solid var(--accent); border-radius: 10px; padding: 1rem; cursor: pointer; transition: all 0.3s ease;" onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 30px rgba(255, 107, 53, 0.3)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
+                        <div style="font-size: 2rem; font-weight: 700; color: var(--accent); font-family: 'JetBrains Mono', monospace; margin-bottom: 0.3rem;">7%</div>
+                        <div style="font-size: 0.8rem; line-height: 1.3;"><strong>Fugitivas CH₄</strong><br><span style="opacity: 0.7; font-size: 0.7rem;">Target principal</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- SLIDE 3: WORKFLOW -->
+        <div class="slide">
+            <div class="code-line">// OPERATIONAL_WORKFLOW.ts</div>
+            <div class="slide-inner" style="display: flex; flex-direction: column; justify-content: center; min-height: calc(100vh - 7rem);">
+                <h2 style="margin-bottom: 2rem;">Flujo Operacional Completo</h2>
+                
+                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.2rem;">
+                    <div class="card" style="flex: 1; min-height: 200px;">
+                        <div style="position: relative;">
+                            <div style="position: absolute; top: -22px; left: 6px; background: var(--primary); color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem;">1</div>
+                        </div>
+                        <img src="./assets/TGN_ops1.png" alt="Captura" style="width: 100%; height: 95px; object-fit: cover; margin-bottom: 0.6rem;">
+                        <div class="card-title" style="font-size: 0.9rem;">Captura de Datos</div>
+                        <div style="font-size: 0.75rem; line-height: 1.4;">
+                            • SCADA live<br>
+                            • Datos climáticos<br>
+                            • Equipamiento
+                        </div>
+                    </div>
+                    
+                    <div style="font-size: 1.6rem; color: var(--primary);">→</div>
+                    
+                    <div class="card" style="flex: 1; min-height: 200px; background: linear-gradient(135deg, rgba(0, 176, 80, 0.15) 0%, rgba(15, 76, 129, 0.15) 100%);">
+                        <div style="position: relative;">
+                            <div style="position: absolute; top: -22px; left: 6px; background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem;">2</div>
+                        </div>
+                        <div style="background: #0d1117; padding: 0.7rem; border-radius: 8px; height: 95px; margin-bottom: 0.6rem; font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: var(--primary); display: flex; align-items: center; justify-content: center; line-height: 1.4;">
+                            model = XGBoost()<br>
+                            prediction = model.predict()<br>
+                            if anomaly > 0.85:<br>
+                            &nbsp;&nbsp;alert_team()
+                        </div>
+                        <div class="card-title" style="font-size: 0.9rem;">Procesamiento IA</div>
+                        <div style="font-size: 0.75rem; line-height: 1.4;">
+                            • Modelos predictivos<br>
+                            • Detección anomalías
+                        </div>
+                    </div>
+                    
+                    <div style="font-size: 1.6rem; color: var(--primary);">→</div>
+                    
+                    <div class="card" style="flex: 1; min-height: 200px; background: rgba(255, 107, 53, 0.1); border-color: var(--accent);">
+                        <div style="position: relative;">
+                            <div style="position: absolute; top: -22px; left: 6px; background: var(--accent); color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem;">3</div>
+                        </div>
+                        <img src="./assets/TGN_ops2.png" alt="Alerta" style="width: 100%; height: 95px; object-fit: cover; margin-bottom: 0.6rem; border: 2px solid var(--accent);">
+                        <div class="card-title" style="font-size: 0.9rem; color: var(--accent);">Alerta Generada</div>
+                        <div style="font-size: 0.75rem; line-height: 1.4;">
+                            • Fuga identificada<br>
+                            • Ubicación: VB-5797<br>
+                            • Confianza: 94%
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="text-align: right; font-size: 1.6rem; color: var(--accent); margin-bottom: 0.6rem; padding-right: 8%;">↓</div>
+                
+                <div style="display: flex; align-items: center; gap: 1rem; flex-direction: row-reverse;">
+                    <div class="card" style="flex: 1; min-height: 200px; border-color: var(--primary); box-shadow: 0 0 12px rgba(0, 176, 80, 0.2);">
+                        <div style="position: relative;">
+                            <div style="position: absolute; top: -22px; left: 6px; background: var(--primary); color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem;">✓</div>
+                        </div>
+                        <img src="./assets/TGN_ops3.png" alt="Resuelto" style="width: 100%; height: 95px; object-fit: cover; margin-bottom: 0.6rem;">
+                        <div class="card-title" style="font-size: 0.9rem;">Problema Resuelto</div>
+                        <div style="font-size: 0.75rem; line-height: 1.4;">
+                            • Mantenimiento OK<br>
+                            • Fuga prevenida<br>
+                            • Reporte GRI
+                        </div>
+                    </div>
+                    
+                    <div style="font-size: 1.6rem; color: var(--primary);">←</div>
+                    
+                    <div class="card" style="flex: 1; min-height: 200px;">
+                        <div style="position: relative;">
+                            <div style="position: absolute; top: -22px; left: 6px; background: var(--primary); color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem;">5</div>
+                        </div>
+                        <img src="./assets/SAP.png" alt="SAP" style="width: 100%; height: 95px; object-fit: cover; margin-bottom: 0.6rem;">
+                        <div class="card-title" style="font-size: 0.9rem;">Ejecución</div>
+                        <div style="font-size: 0.75rem; line-height: 1.4;">
+                            • OT abierta<br>
+                            • Prioridad: Alta<br>
+                            • Equipo asignado
+                        </div>
+                    </div>
+                    
+                    <div style="font-size: 1.6rem; color: #5b5fc7;">←</div>
+                    
+                    <div class="card" style="flex: 1; min-height: 200px; background: rgba(91, 95, 199, 0.1); border-color: #5b5fc7;">
+                        <div style="position: relative;">
+                            <div style="position: absolute; top: -22px; left: 6px; background: #5b5fc7; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem;">4</div>
+                        </div>
+                        <div style="background: #f5f5f5; padding: 0.6rem; border-radius: 8px; height: 95px; margin-bottom: 0.6rem; overflow: hidden;">
+                            <div style="font-size: 0.6rem; color: #666; border-bottom: 1px solid #e0e0e0; padding-bottom: 0.2rem; margin-bottom: 0.3rem;">Mantenimiento – LDAR</div>
+                            <div style="background: #e8f5e9; padding: 0.3rem; border-radius: 6px; font-size: 0.55rem; color: #1b5e20; margin-bottom: 0.3rem;">
+                                Alerta: Válvula A-23<br>94% confianza
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="display: inline-block; background: #5b5fc7; padding: 0.2rem 0.4rem; border-radius: 6px; font-size: 0.55rem; color: white;">
+                                    Crear OT
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-title" style="font-size: 0.9rem; color: #5b5fc7;">Coordinación</div>
+                        <div style="font-size: 0.75rem; line-height: 1.4;">
+                            • Notificación<br>
+                            • Asignación
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- SLIDE 4: ARCHITECTURE -->
+        <div class="slide" style="background: #0d1117;">
+            <div class="code-line">// TECHNICAL_ARCHITECTURE.tsx</div>
+            <div class="slide-inner" style="display: flex; flex-direction: column; justify-content: center; min-height: calc(100vh - 7rem);">
+                <h2 style="margin-bottom: 2rem;">Arquitectura del Sistema</h2>
+                
+                <!-- Modern Hub Architecture -->
+                <div style="max-width: 950px; margin: 0 auto; width: 100%;">
+                    
+                    <!-- Top Row: Inputs -->
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 2rem;">
+                        <div class="card" style="text-align: center; padding: 1.2rem; background: rgba(0, 176, 80, 0.08); position: relative;">
+                            <div style="font-weight: 700; color: var(--primary); font-size: 1rem; margin-bottom: 0.4rem;">SCADA</div>
+                            <div style="font-size: 0.8rem; opacity: 0.8; line-height: 1.4;">Datos operacionales en tiempo real</div>
+                            <!-- Arrow down -->
+                            <div style="position: absolute; bottom: -1.5rem; left: 50%; transform: translateX(-50%); font-size: 1.5rem; color: var(--primary);">↓</div>
+                        </div>
+                        
+                        <div class="card" style="text-align: center; padding: 1.2rem; background: rgba(0, 176, 80, 0.08); position: relative;">
+                            <div style="font-weight: 700; color: var(--primary); font-size: 1rem; margin-bottom: 0.4rem;">SAP / IBM Maximo</div>
+                            <div style="font-size: 0.8rem; opacity: 0.8; line-height: 1.4;">Gestión de mantenimiento</div>
+                            <!-- Arrow down -->
+                            <div style="position: absolute; bottom: -1.5rem; left: 50%; transform: translateX(-50%); font-size: 1.5rem; color: var(--primary);">↓</div>
+                        </div>
+                        
+                        <div class="card" style="text-align: center; padding: 1.2rem; background: rgba(0, 176, 80, 0.08); position: relative;">
+                            <div style="font-weight: 700; color: var(--primary); font-size: 1rem; margin-bottom: 0.4rem;">MS Teams</div>
+                            <div style="font-size: 0.8rem; opacity: 0.8; line-height: 1.4;">Comunicación con personal</div>
+                            <!-- Arrow down -->
+                            <div style="position: absolute; bottom: -1.5rem; left: 50%; transform: translateX(-50%); font-size: 1.5rem; color: var(--primary);">↓</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Middle: Central AI Agent -->
+                    <div style="margin: 3rem 0; position: relative;">
+                        <div style="background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); padding: 2.5rem; border-radius: 20px; text-align: center; box-shadow: 0 20px 60px rgba(0, 176, 80, 0.4); border: 3px solid rgba(0, 176, 80, 0.5);">
+                            <div style="font-size: 2rem; font-weight: 700; color: white; margin-bottom: 0.5rem;">AGENTE IA</div>
+                            <div style="font-size: 0.95rem; color: white; opacity: 0.95; line-height: 1.5;">
+                                Detección Predictiva • Automatización • Análisis en Tiempo Real
+                            </div>
+                        </div>
+                        <!-- Arrows down -->
+                        <div style="position: absolute; bottom: -2rem; left: 30%; font-size: 1.5rem; color: #5b5fc7;">↓</div>
+                        <div style="position: absolute; bottom: -2rem; right: 30%; font-size: 1.5rem; color: #5b5fc7;">↓</div>
+                    </div>
+                    
+                    <!-- Bottom Row: Outputs -->
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 2rem; margin-top: 3rem;">
+                        <div class="card" style="text-align: center; padding: 1.5rem; background: rgba(91, 95, 199, 0.08); border-color: #5b5fc7;">
+                            <div style="font-weight: 700; color: #5b5fc7; font-size: 1.1rem; margin-bottom: 0.5rem;">Órdenes de Trabajo</div>
+                            <div style="font-size: 0.85rem; opacity: 0.85; line-height: 1.4;">Creación automática en SAP/IBM Maximo</div>
+                        </div>
+                        
+                        <div class="card" style="text-align: center; padding: 1.5rem; background: rgba(91, 95, 199, 0.08); border-color: #5b5fc7;">
+                            <div style="font-weight: 700; color: #5b5fc7; font-size: 1.1rem; margin-bottom: 0.5rem;">Interacción Humana</div>
+                            <div style="font-size: 0.85rem; opacity: 0.85; line-height: 1.4;">Notificaciones vía MS Teams</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="text-align: center; padding: 1.2rem; background: rgba(0, 176, 80, 0.05); border-radius: 10px; margin-top: 2rem; max-width: 850px; margin-left: auto; margin-right: auto;">
+                    <p style="font-size: 0.95rem; opacity: 0.9;">
+                        <strong>Sistema 100% integrado:</strong> Sin reemplazar infraestructura existente
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- SLIDE 5: IMPLEMENTATION -->
+        <div class="slide">
+            <div class="code-line">// PLAN_IMPLEMENTACION.tsx</div>
+            <div class="slide-inner" style="display: flex; flex-direction: column; justify-content: center; min-height: calc(100vh - 7rem);">
+                <h2 style="margin-bottom: 1.5rem;">Plan de Implementación</h2>
+                
+                <!-- Timeline visual -->
+                <div style="position: relative; margin-bottom: 2rem;">
+                    <div style="height: 4px; background: linear-gradient(90deg, var(--primary) 0%, var(--primary) 40%, var(--secondary) 100%); border-radius: 2px; position: relative;">
+                        <div style="position: absolute; top: -6px; left: 15%; width: 16px; height: 16px; background: var(--primary); border-radius: 50%; border: 3px solid var(--dark);"></div>
+                        <div style="position: absolute; top: -6px; left: 50%; width: 16px; height: 16px; background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); border-radius: 50%; border: 3px solid var(--dark);"></div>
+                        <div style="position: absolute; top: -6px; right: 15%; width: 16px; height: 16px; background: var(--secondary); border-radius: 50%; border: 3px solid var(--dark);"></div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; padding: 0 10%;">
+                        <div style="font-size: 0.75rem; opacity: 0.7; text-align: center;"></div>
+                        <div style="font-size: 0.75rem; opacity: 0.7; text-align: center;"></div>
+                        <div style="font-size: 0.75rem; opacity: 0.7; text-align: center;"></div>
+                    </div>
+                </div>
+                
+                <div class="grid-3">
+                    <div class="card" style="border-left: 4px solid var(--primary);">
+                        <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem;">
+                            <div style="background: var(--primary); color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem;">1</div>
+                            <div>
+                                <div style="font-weight: 700; font-size: 0.95rem;">Validación Técnica</div>
+                                <div style="font-size: 0.75rem; opacity: 0.7;">2 semanas</div>
+                            </div>
+                        </div>
+                        <div style="font-size: 0.8rem; line-height: 1.5;">
+                            <strong>Objetivo:</strong> Validar modelo<br><br>
+                            <strong>Colaboración TGN:</strong>
+                            <ul style="margin: 0.4rem 0 0 0.9rem;">
+                                <li>Datos SCADA + eventos</li>
+                                <li>1 sponsor (3 hrs/sem)</li>
+                            </ul>
+                            <div style="margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid rgba(0, 176, 80, 0.3); font-size: 0.75rem;">
+                                <strong>KPI:</strong> Precisión ≥70%
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card" style="border-left: 4px solid var(--primary); background: rgba(0, 176, 80, 0.08);">
+                        <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem;">
+                            <div style="background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 50%); color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem;">2</div>
+                            <div>
+                                <div style="font-weight: 700; font-size: 0.95rem;">Integración</div>
+                                <div style="font-size: 0.75rem; opacity: 0.7;">12 semanas</div>
+                            </div>
+                        </div>
+                        <div style="font-size: 0.8rem; line-height: 1.5;">
+                            <strong>Objetivo:</strong> Sistema integrado<br><br>
+                            <strong>Colaboración TGN:</strong>
+                            <ul style="margin: 0.4rem 0 0 0.9rem;">
+                                <li>APIs SAP/Teams</li>
+                                <li>2-3 operadores feedback</li>
+                            </ul>
+                            <div style="margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid rgba(0, 176, 80, 0.3); font-size: 0.75rem;">
+                                <strong>KPIs:</strong> Precisión ≥80%
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card" style="border-left: 4px solid var(--secondary); background: rgba(15, 76, 129, 0.1);">
+                        <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem;">
+                            <div style="background: var(--secondary); color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem;">3</div>
+                            <div>
+                                <div style="font-weight: 700; font-size: 0.95rem;">Producción</div>
+                                <div style="font-size: 0.75rem; opacity: 0.7;">Operación continua</div>
+                            </div>
+                        </div>
+                        <div style="font-size: 0.8rem; line-height: 1.5;">
+                            <strong>Objetivo:</strong> 24/7 en todas<br><br>
+                            <strong>Colaboración TGN:</strong>
+                            <ul style="margin: 0.4rem 0 0 0.9rem;">
+                                <li>Equipo capacitado</li>
+                                <li>Revisión mensual</li>
+                            </ul>
+                            <div style="margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid rgba(0, 176, 80, 0.3); font-size: 0.75rem;">
+                                <strong>KPIs:</strong> Precisión ≥85%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- SLIDE 6: REQUIREMENTS -->
+        <div class="slide">
+            <div class="code-line">// REQUERIMIENTOS_TGN.json</div>
+            <div class="slide-inner" style="display: flex; flex-direction: column; justify-content: center; min-height: calc(100vh - 7rem);">
+                <h2 style="margin-bottom: 1.5rem;">Lo que Necesitamos de TGN</h2>
+                
+                <div class="grid-3">
+                    <div class="card">
+                        <div class="card-title">Datos SCADA<br>(3-6 meses)</div>
+                        <ul style="font-size: 0.8rem; line-height: 1.6; list-style: none; padding: 0;">
+                            <li>• Presión, flujo, temp.</li>
+                            <li>• Intervalos de 10 min</li>
+                            <li>• IDs de activos</li>
+                            <li>• Fugas conocidas</li>
+                            <li>• Eventos mantenimiento</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-title">Colaboración</div>
+                        <ul style="font-size: 0.8rem; line-height: 1.6; list-style: none; padding: 0;">
+                            <li>• 1 sponsor (3 hrs/sem)</li>
+                            <li>• Reunión inicial</li>
+                            <li>• Reuniones quincenales</li>
+                            <li>• NDA y acuerdo datos</li>
+                        </ul>
+                        <div style="margin-top: 1rem; padding: 0.8rem; background: rgba(0, 176, 80, 0.1); border-radius: 8px;">
+                            <div style="font-weight: 700; color: var(--primary); margin-bottom: 0.3rem; font-size: 0.85rem;">Seguridad</div>
+                            <div style="font-size: 0.75rem; line-height: 1.4;">
+                                • Confidencial<br>
+                                • IDs anonimizados<br>
+                                • Procesamiento seguro
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-title">Cronograma</div>
+                        <div style="font-size: 0.8rem; line-height: 1.5;">
+                            <div style="padding: 0.7rem; background: rgba(255, 255, 255, 0.05); border-radius: 8px; margin-bottom: 0.6rem;">
+                                <strong>Semana 1:</strong> Entrega + kickoff
+                            </div>
+                            <div style="padding: 0.7rem; background: rgba(255, 255, 255, 0.05); border-radius: 8px; margin-bottom: 0.6rem;">
+                                <strong>Semanas 2-3:</strong> Análisis
+                            </div>
+                            <div style="padding: 0.7rem; background: rgba(255, 255, 255, 0.05); border-radius: 8px;">
+                                <strong>Semana 4:</strong> Resultados
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 1.2rem; padding: 1rem; background: linear-gradient(135deg, rgba(0, 176, 80, 0.1) 0%, rgba(15, 76, 129, 0.05) 100%); border-radius: 10px; text-align: center;">
+                    <p style="font-size: 0.9rem; font-weight: 600; color: var(--primary); margin-bottom: 0.3rem;">
+                        Por qué es Importante
+                    </p>
+                    <p style="font-size: 0.85rem; opacity: 0.9; line-height: 1.4;">
+                        4 semanas demuestran precisión ≥70% en su infraestructura
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- SLIDE 7: RESULTS -->
+        <div class="slide" style="background: #0d1117;">
+            <div class="code-line">// RESULTADOS_SISTEMA.tsx</div>
+            <div class="slide-inner" style="display: flex; flex-direction: column; justify-content: center; min-height: calc(100vh - 7rem);">
+                <h2 style="margin-bottom: 1.5rem;">Resultados Comprobados</h2>
+                
+                <div class="grid-3" style="margin-bottom: 1.2rem;">
+                    <div class="metric card">
+                        <div class="metric-value">85%+</div>
+                        <div class="metric-label">Precisión</div>
+                    </div>
+                    
+                    <div class="metric card">
+                        <div class="metric-value">&lt;5min</div>
+                        <div class="metric-label">Tiempo alerta</div>
+                    </div>
+                    
+                    <div class="metric card">
+                        <div class="metric-value">98%+</div>
+                        <div class="metric-label">Uptime</div>
+                    </div>
+                </div>
+                
+                <div class="card" style="padding: 1.5rem; text-align: center;">
+                    <img src="./assets/graph.png" alt="Performance" style="max-width: 90%; max-height: 250px;">
+                </div>
+            </div>
+        </div>
+        
+        <!-- SLIDE 8: BACKING -->
+        <div class="slide">
+            <div class="code-line">// STRATEGIC_BACKING.json</div>
+            <div class="slide-inner" style="display: flex; flex-direction: column; justify-content: center; min-height: calc(100vh - 7rem);">
+                <h2 style="margin-bottom: 2rem;">Respaldados por Líderes de la Industria</h2>
+                
+                <div class="grid-3" style="margin-top: 1rem;">
+                    <div class="card" style="text-align: center; padding: 2rem 1.5rem;">
+                        <img src="./assets/ignite.png" alt="Ignite" style="max-width: 160px; height: 85px; object-fit: contain; margin-bottom: 1rem;">
+                        <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem;">Ignite London</div>
+                        <div style="font-size: 0.9rem; opacity: 0.8; line-height: 1.5;">
+                            Aceleradora líder en Europa para startups deep-tech con potencial de transformar industrias globales
+                        </div>
+                    </div>
+                    
+                    <div class="card" style="text-align: center; padding: 2rem 1.5rem;">
+                        <img src="./assets/nvidia.png" alt="NVIDIA" style="max-width: 160px; height: 85px; object-fit: contain; margin-bottom: 1rem;">
+                        <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem;">NVIDIA Inception</div>
+                        <div style="font-size: 0.9rem; opacity: 0.8; line-height: 1.5;">
+                            Programa global que proporciona tecnología avanzada de IA y acceso a infraestructura de alto rendimiento
+                        </div>
+                    </div>
+                    
+                    <div class="card" style="text-align: center; padding: 2rem 1.5rem;">
+                        <div style="width: 85px; height: 85px; background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; font-size: 2rem; color: white; font-weight: 700;">JG</div>
+                        <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem;">Javier Gremes</div>
+                        <div style="font-size: 0.9rem; opacity: 0.8; line-height: 1.5;">
+                            Ex-CEO de TGS y Pecom. Líder con 30+ años de experiencia en Oil & Gas, aporta visión estratégica
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- SLIDE 9: ROI -->
+        <div class="slide">
+            <div class="code-line">// RETORNO_INVERSION.py</div>
+            <div class="slide-inner" style="display: flex; flex-direction: column; justify-content: center; min-height: calc(100vh - 7rem);">
+                <h1 style="margin-bottom: 1.5rem;">Retorno de Inversión</h1>
+                
+                <div class="grid-2" style="margin-bottom: 1.2rem;">
+                    <div class="card" style="text-align: center; padding: 1.5rem;">
+                        <div style="font-size: 0.85rem; opacity: 0.8; margin-bottom: 0.3rem; text-transform: uppercase;">Inversión Anual</div>
+                        <div style="font-size: 2.8rem; font-weight: 700; color: var(--primary); font-family: 'JetBrains Mono', monospace; line-height: 1;">$240K</div>
+                        <div style="font-size: 0.8rem; opacity: 0.8; margin-top: 0.2rem;">$20K/mes</div>
+                    </div>
+                    
+                    <div class="card" style="text-align: center; padding: 1.5rem;">
+                        <div style="font-size: 0.85rem; opacity: 0.8; margin-bottom: 0.3rem; text-transform: uppercase;">Retorno Anual</div>
+                        <div style="font-size: 2.8rem; font-weight: 700; color: var(--primary); font-family: 'JetBrains Mono', monospace; line-height: 1;">$9M-$16M</div>
+                        <div style="font-size: 0.8rem; opacity: 0.8; margin-top: 0.2rem;">Ahorro por fugas</div>
+                    </div>
+                </div>
+                
+                <div class="card" style="padding: 1.5rem; text-align: center; margin-bottom: 1.2rem;">
+                    <img src="./assets/roi.png" alt="ROI" style="max-width: 90%; max-height: 200px;">
+                </div>
+                
+                <div class="grid-2">
+                    <div class="card" style="text-align: center; padding: 1.2rem; border: 2px solid var(--primary);">
+                        <div style="font-size: 0.85rem; opacity: 0.8; margin-bottom: 0.2rem;">ROI</div>
+                        <div style="font-size: 2.2rem; font-weight: 700; color: var(--primary); font-family: 'JetBrains Mono', monospace; line-height: 1;">3,650%-6,567%</div>
+                        <div style="font-size: 0.8rem; opacity: 0.8; margin-top: 0.2rem;">$37-$67 por $1</div>
+                    </div>
+                    
+                    <div class="card" style="text-align: center; padding: 1.2rem; border: 2px solid var(--primary);">
+                        <div style="font-size: 0.85rem; opacity: 0.8; margin-bottom: 0.2rem;">Payback</div>
+                        <div style="font-size: 2.2rem; font-weight: 700; color: var(--primary); font-family: 'JetBrains Mono', monospace; line-height: 1;">5-10 días</div>
+                        <div style="font-size: 0.8rem; opacity: 0.8; margin-top: 0.2rem;">Ultra-rápido</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+<!-- SLIDE 10: NEXT STEPS -->
+    <section class="slide" style="background: radial-gradient(900px 600px at 50% 30%, rgba(0,176,80,.16), rgba(0,0,0,0) 62%), linear-gradient(180deg, #090d12, #070a0d);">
+      <div class="code-line">// NEXT_STEPS.tsx</div>
+      <div class="slide-content" style="text-align:center;">
+        <div style="display:flex; justify-content:center; align-items:center; gap:14px; margin-top:10px;">
+          <img src="./assets/vorntec-logo.png" alt="VÖRNTEC" style="height:64px; width:auto; filter: drop-shadow(0 12px 40px rgba(0,0,0,.45));"/>
+        </div>
+
+        <div style="font-size: clamp(1.25rem, 1.8vw, 1.65rem); margin-top:10px; opacity:.92;">
+          Arranquemos con una demo técnica de <strong>2 semanas</strong>
+        </div>
+
+        <div class="card" style="max-width: 820px; margin: 16px auto 0;">
+          <div style="font-weight:900; color: rgba(0,176,80,.95); font-size: 1.25rem; margin-bottom: 12px;">Próximos pasos</div>
+          <div class="grid-2">
+            <div style="text-align:center; padding: 10px;">
+              <div style="font-family:'JetBrains Mono', monospace; font-size: 2.4rem; font-weight:900; color: rgba(0,176,80,.95);">1</div>
+              <div style="font-weight:900; font-size: 1.05rem;">Elegir planta</div>
+              <div class="muted">planta compresora / estación</div>
+            </div>
+
+            <div style="text-align:center; padding: 10px;">
+              <div style="font-family:'JetBrains Mono', monospace; font-size: 2.4rem; font-weight:900; color: rgba(0,176,80,.95);">2</div>
+              <div style="font-weight:900; font-size: 1.05rem;">Entrega de datos</div>
+              <div class="muted">export / API / VPN (lo que IT prefiera)</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:auto; font-family:'JetBrains Mono', monospace; opacity:.75;">
+          website: vorntec.com<br/>linkedin: VÖRNTEC
+        </div>
+        <div style="opacity:.85; margin-top:10px;">Gracias por su tiempo</div>
+        <div style="opacity:.35; font-size:.85rem; font-family:'JetBrains Mono', monospace; margin-top:6px;">
+          © 2026 VÖRNTEC | Confidential
+        </div>
+      </div>
+            </div>
+        </div>
+        
+    </div>
+    
+    <script>
+        let currentSlideIndex = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+        
+        function init() {
+            document.getElementById('totalSlides').textContent = totalSlides;
+            const container = document.getElementById('slidesContainer');
+            container.addEventListener('scroll', updateCurrentSlide);
+        }
+        
+        function updateCurrentSlide() {
+            const container = document.getElementById('slidesContainer');
+            const scrollPosition = container.scrollTop;
+            const slideHeight = window.innerHeight;
+            const newIndex = Math.round(scrollPosition / slideHeight);
+            
+            if (newIndex !== currentSlideIndex && newIndex >= 0 && newIndex < totalSlides) {
+                currentSlideIndex = newIndex;
+                document.getElementById('currentSlide').textContent = currentSlideIndex + 1;
+            }
+        }
+        
+        function goToSlide(index) {
+            if (index >= 0 && index < totalSlides) {
+                const container = document.getElementById('slidesContainer');
+                container.scrollTo({
+                    top: index * window.innerHeight,
+                    behavior: 'smooth'
+                });
+            }
+        }
+        
+        function nextSlide() {
+            if (currentSlideIndex < totalSlides - 1) {
+                goToSlide(currentSlideIndex + 1);
+            }
+        }
+        
+        function previousSlide() {
+            if (currentSlideIndex > 0) {
+                goToSlide(currentSlideIndex - 1);
+            }
+        }
+        
+        // Keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            // Don't navigate if modal is open
+            if (document.getElementById('modalOverlay').style.display === 'flex') {
+                if (e.key === 'Escape') {
+                    closeModal();
+                }
+                return;
+            }
+            
+            if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') {
+                e.preventDefault();
+                nextSlide();
+            } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+                e.preventDefault();
+                previousSlide();
+            } else if (e.key === 'Home') {
+                e.preventDefault();
+                goToSlide(0);
+            } else if (e.key === 'End') {
+                e.preventDefault();
+                goToSlide(totalSlides - 1);
+            }
+        });
+        
+        document.addEventListener('DOMContentLoaded', init);
+        
+        // Modal functions
+        function showModal(title, text) {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalText').textContent = text;
+            const modal = document.getElementById('modalOverlay');
+            modal.style.display = 'flex';
+        }
+        
+        function closeModal() {
+            document.getElementById('modalOverlay').style.display = 'none';
+        }
+        
+        // Close modal when clicking outside
+        document.getElementById('modalOverlay').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html>
